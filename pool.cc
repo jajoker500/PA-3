@@ -25,19 +25,34 @@ ThreadPool::~ThreadPool() {
 
 void ThreadPool::SubmitTask(const std::string &name, Task *task) {
     //TODO: Add task to queue, make sure to lock the queue
+    mtx.lock();
+    if(done) {
+        std::cerr << "Cannot added..." << std::endl;
+        mtx.unlock();
+        return;
+    }
+    task->name = name;
+    queue.push_back(task);
+    mtx.unlock();
+    wake_up.notify_one();
 }
 
 void ThreadPool::run_thread() {
     while (true) {
-
-        //TODO1: if done and no tasks left, break
-
+        std::unique_lock<std::mutex> lock(mtx);
         //TODO2: if no tasks left, continue
-
-       
+        while (!done && queue.empty()) {
+            wake_up.wait(lock);
+        }
+        //TODO1: if done and no tasks left, break
+        if(done && queue.empty()) { break;}
         //TODO3: get task from queue, remove it from queue, and run it
-
+        Task *currTask = queue.front();
+        lock.unlock();
+        remove_task(currTask);
+        currTask->Run();
         //TODO4: delete task
+        delete currTask;
     }
 }
 
@@ -57,4 +72,14 @@ void ThreadPool::remove_task(Task *t) {
 
 void ThreadPool::Stop() {
     //TODO: Delete threads, but remember to wait for them to finish first
+    mtx.lock();
+    done = true;
+    mtx.unlock();
+    wake_up.notify_all();
+    while(!threads.empty()) {
+        std::thread* currThread = threads.back();
+        threads.pop_back();
+        currThread->join();
+        delete currThread;
+    }
 }

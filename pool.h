@@ -29,7 +29,7 @@ public:
     void remove_task(Task *t);
 
     // Stop all threads. All tasks must have been waited for before calling this.
-    // You may assume that SubmitTask() is not caled after this is called.
+    // You may assume that SubmitTask() is not called after this is called.
     void Stop();
 
     void run_thread();
@@ -39,5 +39,6 @@ private:
     std::mutex mtx;
     std::vector<std::thread *> threads;
     std::vector<Task *> queue;
+    std::condition_variable wake_up;
     volatile bool done = false;
 };

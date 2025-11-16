@@ -25,37 +25,37 @@ ThreadPool::~ThreadPool() {
 
 void ThreadPool::SubmitTask(const std::string &name, Task *task) {
     //TODO: Add task to queue, make sure to lock the queue
-    mtx.lock();
-    if(done) {
+    mtx.lock(); // start by locking while messing with the queue
+    if(done) { // if already finished cant add
         std::cerr << "Cannot added task to queue" << std::endl;
-        mtx.unlock();
-        return;
+        mtx.unlock(); // release lock
+        return; // escape
     }
-    task->name = name;
-    queue.push_back(task);
-    mtx.unlock();
-    std::cout << "Added task: " << name << std::endl;
-    wake_up.notify_one();
+    task->name = name; // update the task name
+    queue.push_back(task); // push the task into the queue
+    mtx.unlock(); // release the lock
+    std::cout << "Added task: " << name << std::endl; // say whats added
+    wake_up.notify_one(); // wake up one thread
 }
 
 void ThreadPool::run_thread() {
     while (true) {
-        std::unique_lock<std::mutex> lock(mtx);
+        std::unique_lock<std::mutex> lock(mtx); // need unique lock for wait
         //TODO2: if no tasks left, continue
-        while (!done && queue.empty()) {
-            wake_up.wait(lock);
+        while (!done && queue.empty()) { // if not done and queue empty wait for notify
+            wake_up.wait(lock); // wait for notify
         }
         //TODO1: if done and no tasks left, break
-        if(done && queue.empty()) { std::cout << "Stopping thread" << std::endl; break;}
+        if(done && queue.empty()) { std::cout << "Stopping thread" << std::endl; break;} // update done/ break if done and empty
         //TODO3: get task from queue, remove it from queue, and run it
-        Task *currTask = queue.front();
-        queue.erase(queue.begin());
+        Task *currTask = queue.front(); // set the current task to the front of the queue
+        queue.erase(queue.begin()); //dequeue
         std::cout << "Started task: " << currTask->name << std::endl;
-        lock.unlock();
-        currTask->Run();
+        lock.unlock(); // unlock
+        currTask->Run(); // now run it
         std::cout << "Finished task: " << currTask->name << std::endl;
         //TODO4: delete task
-        delete currTask;
+        delete currTask; // deletes it
     }
 }
 
@@ -76,14 +76,14 @@ void ThreadPool::remove_task(Task *t) {
 void ThreadPool::Stop() {
     //TODO: Delete threads, but remember to wait for them to finish first
     std::cout << "Called Stop()" << std::endl;
-    mtx.lock();
-    done = true;
-    mtx.unlock();
-    wake_up.notify_all();
-    while(!threads.empty()) {
-        std::thread* currThread = threads.back();
-        threads.pop_back();
-        currThread->join();
-        delete currThread;
+    mtx.lock(); // lock to update volatile value
+    done = true; // we told to stop so update done
+    mtx.unlock(); // unlock
+    wake_up.notify_all(); // let every thread know to finish up and stop
+    while(!threads.empty()) { // while still threads in queue
+        std::thread* currThread = threads.back(); // look at one
+        threads.pop_back(); // pop it
+        currThread->join(); // wait for it to finish
+        delete currThread; // delete it
     }
 }

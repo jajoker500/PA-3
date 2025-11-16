@@ -27,13 +27,14 @@ void ThreadPool::SubmitTask(const std::string &name, Task *task) {
     //TODO: Add task to queue, make sure to lock the queue
     mtx.lock();
     if(done) {
-        std::cerr << "Cannot added..." << std::endl;
+        std::cerr << "Cannot added task to queue" << std::endl;
         mtx.unlock();
         return;
     }
     task->name = name;
     queue.push_back(task);
     mtx.unlock();
+    std::cout << "Added task: " << name << std::endl;
     wake_up.notify_one();
 }
 
@@ -45,13 +46,16 @@ void ThreadPool::run_thread() {
             wake_up.wait(lock);
         }
         //TODO1: if done and no tasks left, break
-        if(done && queue.empty()) { break;}
+        if(done && queue.empty()) { std::cout << "Stopping thread" << std::endl; break;}
         //TODO3: get task from queue, remove it from queue, and run it
         Task *currTask = queue.front();
+        queue.erase(queue.begin());
+        std::cout << "Started task: " << currTask->name << std::endl;
         lock.unlock();
-        remove_task(currTask);
         currTask->Run();
+        std::cout << "Finished task: " << currTask->name << std::endl;
         //TODO4: delete task
+        //remove_task(currTask);
         delete currTask;
     }
 }
@@ -72,6 +76,7 @@ void ThreadPool::remove_task(Task *t) {
 
 void ThreadPool::Stop() {
     //TODO: Delete threads, but remember to wait for them to finish first
+    std::cout << "Called Stop()" << std::endl;
     mtx.lock();
     done = true;
     mtx.unlock();

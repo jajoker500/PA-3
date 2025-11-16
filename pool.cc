@@ -55,7 +55,6 @@ void ThreadPool::run_thread() {
         currTask->Run();
         std::cout << "Finished task: " << currTask->name << std::endl;
         //TODO4: delete task
-        //remove_task(currTask);
         delete currTask;
     }
 }
